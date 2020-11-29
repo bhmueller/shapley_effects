@@ -37,6 +37,6 @@ def simulate_variance(model, cov, mean, n_sim):
 
     # Calculate the output Y.
     output = model(model_inputs)
-    if output.shape != (n_sim,):
-        raise ValueError
+    # if output.shape != (n_sim,):
+    #   raise ValueError
     return np.var(output)
