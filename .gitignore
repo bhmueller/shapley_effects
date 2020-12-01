@@ -13,11 +13,11 @@
 *.bib.bak
 *.ipynb_checkpoints
 test_*
-thesis_project_heid.egg-info
+#thesis_project_heid.egg-info
 
 # Folder
 __pycache__
 .pytest_cache/
 
 # Jupyter
-.ipynb_checkpoints
+#.ipynb_checkpoints
