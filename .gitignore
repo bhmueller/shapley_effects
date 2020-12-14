@@ -1,4 +1,5 @@
 # Latex
+*.m
 *.log
 *.aux
 *.bbl
