@@ -1,0 +1,25 @@
+name: shapley_effects
+
+channels:
+- conda-forge
+- opensourceeconomics
+
+dependencies:
+- python
+- numpoly==1.0.8
+- ipython
+- scipy=1.6.1
+- numpy
+- numba
+- pandas
+- jupyterlab
+- matplotlib
+- seaborn
+- scipy
+# - chaospy
+- pip
+# - pip:
+#     - flake8
+#     - black
+#     - pre-commit
+
