@@ -350,8 +350,8 @@ def get_simulated_shapley(n_replicates, method, model, x_all, x_cond, n_perms, n
     crit_value = 1.96
     for i in np.arange(n_inputs):
         k = i + 1
-        variance = np.var([shapley_effects[i]['Shapley effects'][f'X{k}'] for i in np.arange(n_replicates)])
-        mean = np.mean([shapley_effects[i]['Shapley effects'][f'X{k}'] for i in np.arange(n_replicates)])
+        variance = np.var([shapley_effects_simulated[i]['Shapley effects'][f'X{k}'] for i in np.arange(n_replicates)])
+        mean = np.mean([shapley_effects_simulated[i]['Shapley effects'][f'X{k}'] for i in np.arange(n_replicates)])
         
         ci = compute_confidence_intervals(mean, variance, crit_value)
                                        
@@ -370,7 +370,6 @@ def get_simulated_shapley(n_replicates, method, model, x_all, x_cond, n_perms, n
                                                 )
     
     return descriptives_shapley_effects
-
 
 
 def test_std_error_ishigami():
@@ -397,5 +396,16 @@ def test_std_error_ishigami():
         distribution = cp.Iid(cp.Uniform(lower, upper), len(subset_j))
         return distribution.sample(n)
 
-    n_replicates = 10 ** 3
+    n_replicates = 10 ** 2
     shapley_simulated = get_simulated_shapley(n_replicates, method, ishigami_function, x_all, x_cond_uniform, n_perms, n_inputs, n_output, n_outer, n_inner)
+
+    # Now with different values for n_outer and n_inner, s.t. same computational budget 
+    # is allocated to both methods of deriving stad. errors.
+    n_outer_built_in = n_outer * n_replicates
+    n_inner_built_in = n_inner
+    shapley_built_in = get_shapley(method, ishigami_function, x_all, x_cond_uniform, n_perms, n_inputs, n_output, n_outer_built_in, n_inner_built_in)
+
+    print(f'shapley_simulated: {shapley_simulated}')
+    print(f'shapley_built_in: {shapley_built_in}')
+
+    aaae(shapley_simulated, shapley_built_in)
