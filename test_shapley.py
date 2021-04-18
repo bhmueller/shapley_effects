@@ -1,6 +1,7 @@
 import chaospy as cp
 import numpy as np
 import pandas as pd
+from functools import partial
 from numpy.testing import assert_array_almost_equal as aaae
 
 from econsa.shapley import _r_condmvn
@@ -176,33 +177,6 @@ def test_get_shapley_linear_three_inputs():
     aaae(calculated["Shapley effects"], expected["Shapley effects"], 3)
 
 
-# def simulate_cov_and_mean_rc_theta_11(num_sim,
-#                                       n_inputs, 
-#                                       model,
-#                                      ):
-    
-#     parameter_estimates = np.zeros((num_sim, n_inputs))
-    
-#     for i in np.arange(num_sim):
-        
-#         np.random.seed = i
-
-#         model =
-        
-#         # df = simulate(init_dict_simulation["simulation"], ev, costs, trans_mat)
-#         # data = df[['state', 'decision', 'usage']].copy()
-        
-#         # result_transitions_nfxp, result_fixp_nfxp = estimate(init_dict_estimation, data)
-            
-#         parameter_estimates[i, :] = result_fixp_nfxp['x']
-        
-            
-#     cov = np.cov(parameter_estimates.T)
-#     mean = np.mean(parameter_estimates, axis=0)
-            
-#     return cov, mean
-
-
 def test_get_shapley_ishigami():
     '''Test case and analytical Shapley values obtained from Plischke, Rabitti, and
     Borgonovo (2020), p. 8. Inputs are independent.'''
@@ -213,7 +187,7 @@ def test_get_shapley_ishigami():
         distribution = cp.Iid(cp.Uniform(lower, upper), n_inputs)
         return distribution.sample(n)
 
-    def x_cond(n, subset_j, subsetj_conditional, xjc):
+    def x_cond_uniform(n, subset_j, subsetj_conditional, xjc):
         distribution = cp.Iid(cp.Uniform(lower, upper), len(subset_j))
         return distribution.sample(n)
 
@@ -249,7 +223,7 @@ def test_get_shapley_ishigami():
         method,
         ishigami_function,
         x_all,
-        x_cond,
+        x_cond_uniform,
         n_perms,
         n_inputs,
         n_output,
@@ -338,3 +312,90 @@ def test_get_shapley_additive_three_inputs():
     )
 
     aaae(calculated["Shapley effects"], expected["Shapley effects"], 2)
+
+
+def compute_confidence_intervals(param_estimate, variance, critical_value):
+    '''Compute confidence intervals (ci). Note assumptions about the distributions apply.
+    
+    Parameters
+    ----------
+    param_estimate: float
+        Parameter estimate for which ci should be computed
+    variance: float
+        Variance of parameter estimate.
+    critical_value: float
+        Critical value of the t distribution, e.g. for the 95-percent-ci it's 1.96.
+
+    Returns
+    -------
+    confidence_interval_dict: dict
+        Lower (upper) bound of the ci can be accessed by the key 'lower_bound' ('upper_bound').
+    
+    '''
+    confidence_interval_dict = {}
+    confidence_interval_dict['lower_bound'] = param_estimate - critical_value * np.sqrt(variance)
+    confidence_interval_dict['upper_bound'] = param_estimate + critical_value * np.sqrt(variance)
+    return confidence_interval_dict
+
+
+def get_simulated_shapley(n_replicates, method, model, x_all, x_cond, n_perms, n_inputs, n_output, n_outer, n_inner):
+
+    shapley_effects_simulated = {}
+    for i in np.arange(n_replicates):
+        np.random.seed(i)
+        exact_shapley = get_shapley(method, model, x_all, x_cond, n_perms, n_inputs, n_output, n_outer, n_inner)
+        shapley_effects_simulated[i] = exact_shapley
+
+    descriptives_data = np.zeros((n_inputs, 4))
+    crit_value = 1.96
+    for i in np.arange(n_inputs):
+        k = i + 1
+        variance = np.var([shapley_effects[i]['Shapley effects'][f'X{k}'] for i in np.arange(n_replicates)])
+        mean = np.mean([shapley_effects[i]['Shapley effects'][f'X{k}'] for i in np.arange(n_replicates)])
+        
+        ci = compute_confidence_intervals(mean, variance, crit_value)
+                                       
+        std_error = np.sqrt(variance)
+        descriptives_data[i, :] = np.array([mean, 
+                                            std_error, 
+                                    ci['lower_bound'], 
+                                    ci['upper_bound']
+                                    ]
+                                    )
+
+    col = ["X" + str(i) for i in np.arange(n_inputs) + 1]
+    descriptives_shapley_effects = pd.DataFrame(descriptives_data, 
+                                                columns=["Shapley effects", "std. errors", "CI_min", "CI_max"], 
+                                                index=col
+                                                )
+    
+    return descriptives_shapley_effects
+
+
+
+def test_std_error_ishigami():
+    np.random.seed(1234)
+
+    lower = -np.pi
+    upper = np.pi
+    
+    method = 'exact'
+    n_perms = None
+    n_inputs = 3
+    n_output = 10 ** 3
+    n_outer = 10 ** 2
+    n_inner = 10
+
+    def ishigami_function(x):
+        return np.sin(x[:, 0]) * (1 + 0.1 * np.power(x[:, 2], 4)) + 7 * np.power(np.sin(x[:, 1]), 2)
+
+    def x_all(n):
+        distribution = cp.Iid(cp.Uniform(lower, upper), n_inputs)
+        return distribution.sample(n)
+
+    def x_cond_uniform(n, subset_j, subsetj_conditional, xjc):
+        distribution = cp.Iid(cp.Uniform(lower, upper), len(subset_j))
+        return distribution.sample(n)
+
+    n_replicates = 10 ** 3
+    shapley_simulated = get_simulated_shapley(n_replicates, method, ishigami_function, x_all, x_cond_uniform, n_perms, n_inputs, n_output, n_outer, n_inner)
