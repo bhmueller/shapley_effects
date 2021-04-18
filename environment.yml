@@ -15,10 +15,11 @@ dependencies:
 - jupyterlab
 - matplotlib
 - seaborn
-- scipy
-# - chaospy
+- pytest
+- chaospy
 - pip
-# - pip:
+- pip:
+     - C:\Users\admin\Masterarbeit\econsa
 #     - flake8
 #     - black
 #     - pre-commit
