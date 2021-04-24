@@ -314,7 +314,7 @@ def test_get_shapley_additive_three_inputs():
     aaae(calculated["Shapley effects"], expected["Shapley effects"], 2)
 
 
-def compute_confidence_intervals(param_estimate, variance, critical_value):
+def compute_confidence_intervals(param_estimate, std_error, critical_value):
     '''Compute confidence intervals (ci). Note assumptions about the distributions apply.
     
     Parameters
@@ -333,14 +333,15 @@ def compute_confidence_intervals(param_estimate, variance, critical_value):
     
     '''
     confidence_interval_dict = {}
-    confidence_interval_dict['lower_bound'] = param_estimate - critical_value * np.sqrt(variance)
-    confidence_interval_dict['upper_bound'] = param_estimate + critical_value * np.sqrt(variance)
+    confidence_interval_dict['lower_bound'] = param_estimate - critical_value * std_error
+    confidence_interval_dict['upper_bound'] = param_estimate + critical_value * std_error
     return confidence_interval_dict
 
 
 def get_simulated_shapley(n_replicates, method, model, x_all, x_cond, n_perms, n_inputs, n_output, n_outer, n_inner):
 
     shapley_effects_simulated = {}
+    # Could avoid for loop by partial function and mapping.
     for i in np.arange(n_replicates):
         np.random.seed(i)
         exact_shapley = get_shapley(method, model, x_all, x_cond, n_perms, n_inputs, n_output, n_outer, n_inner)
@@ -352,10 +353,12 @@ def get_simulated_shapley(n_replicates, method, model, x_all, x_cond, n_perms, n
         k = i + 1
         variance = np.var([shapley_effects_simulated[i]['Shapley effects'][f'X{k}'] for i in np.arange(n_replicates)])
         mean = np.mean([shapley_effects_simulated[i]['Shapley effects'][f'X{k}'] for i in np.arange(n_replicates)])
+
+        std_error = variance * n_replicates / np.sqrt(n_replicates)
         
-        ci = compute_confidence_intervals(mean, variance, crit_value)
+        ci = compute_confidence_intervals(mean, std_error, crit_value)
                                        
-        std_error = np.sqrt(variance)
+        # std_error = np.sqrt(variance)
         descriptives_data[i, :] = np.array([mean, 
                                             std_error, 
                                     ci['lower_bound'], 
